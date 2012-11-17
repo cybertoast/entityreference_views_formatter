@@ -1,1 +1,5 @@
 name = Entity Reference Views Formatter
+description = Provides Views based entity reference field formatter.
+core = 7.x
+dependencies[] = entityreference
+dependencies[] = views
