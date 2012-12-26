@@ -74,17 +74,14 @@ function entityreference_views_formatter_field_formatter_prepare_view($entity_ty
       $display = $displays[$id]['settings']['view_display'];
       if ($view->access($display)) {
         $view->set_display($display);
-        $view->init_handlers();
         $view->set_arguments(array($id));
-        $view->execute();
-        $view->query->pager = NULL;
-        $output = $view->render($display);
+        $output = $view->preview($display);
         $view->destroy();
       }
     }
     // We discard the existing items array for this entity and replace it with an
     // array of just one item, the rendered view output.
-    $first_item = $items[$id][0];
+    $first_item = isset($items[$id][0]) ? $items[$id][0] : array();
     $first_item['rendered'] = $output;
     $items[$id] = array($first_item);
   }
@@ -96,7 +93,9 @@ function entityreference_views_formatter_field_formatter_prepare_view($entity_ty
 function entityreference_views_formatter_field_formatter_view($entity_type, $entity, $field, $instance, $langcode, $items, $display) {
   $result = array();
   if ($display['type'] == 'entityreference_views_formatter') {
-    $result[0] = array('#markup' => $items[0]['rendered']);
+    if (isset($items[0]['rendered'])) {
+      $result[0] = array('#markup' => $items[0]['rendered']);
+    }
   }
   return $result;
 }
