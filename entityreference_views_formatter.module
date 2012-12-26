@@ -69,6 +69,7 @@ function entityreference_views_formatter_field_formatter_settings_summary($field
 function entityreference_views_formatter_field_formatter_prepare_view($entity_type, $entities, $field, $instances, $langcode, &$items, $displays) {
   foreach ($entities as $id => $entity) {
     $output = '';
+    $is_empty = TRUE;
     $view = views_get_view($displays[$id]['settings']['view_name']);
     if ($view) {
       $display = $displays[$id]['settings']['view_display'];
@@ -76,14 +77,20 @@ function entityreference_views_formatter_field_formatter_prepare_view($entity_ty
         $view->set_display($display);
         $view->set_arguments(array($id));
         $output = $view->preview($display);
+        $is_empty = ((strlen($output) == 0) || ((empty($view->result))) && (count($view->display_handler->get_option('empty')) == 0));
         $view->destroy();
       }
     }
     // We discard the existing items array for this entity and replace it with an
     // array of just one item, the rendered view output.
-    $first_item = isset($items[$id][0]) ? $items[$id][0] : array();
-    $first_item['rendered'] = $output;
-    $items[$id] = array($first_item);
+    if (!$is_empty) {
+      $first_item = isset($items[$id][0]) ? $items[$id][0] : array();
+      $first_item['rendered'] = $output;
+      $items[$id] = array($first_item);
+    }
+    else {
+      $items[$id] = array();
+    }
   }
 }
 
