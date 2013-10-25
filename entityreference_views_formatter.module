@@ -75,9 +75,36 @@ function entityreference_views_formatter_field_formatter_prepare_view($entity_ty
       $display = $displays[$id]['settings']['view_display'];
       if ($view->access($display)) {
         $view->set_display($display);
-        $view->set_arguments(array($id));
-        $output = $view->preview($display);
-        $is_empty = ((strlen($output) == 0) || ((empty($view->result))) && (count($view->display_handler->get_option('empty')) == 0));
+        // Services views/displays are based on the Services-Views module,
+        // so theck that our custom version exists
+        // Do stuff ONLY if the services and services_views modules exist
+        // AND if services_views is our custom version
+        if (module_exists('services') && 
+            module_exists('services_views') &&
+            function_exists('services_views_render_output') &&
+            preg_match("/^services/i", $display)) 
+        {
+            $erfield = field_get_items($entity_type, $entity, $field['field_name']);
+            // Get the referenced field's target-id that we need to limit to
+            $erid = $erfield[0]['target_id'];
+            $view->exposed_input['nid'] = $erid;
+            // $view->set_arguments(array($id));
+            // $view->execute_display($display);
+            $view->pre_execute();
+            $view->execute();
+            
+            // We can't simply render the view - we need to actually 
+            // go through the fields and render the format that we want
+            $output = services_views_render_output($view);
+            $is_empty = (sizeof($output) == 0);
+        } elseif (preg_match("/^services/i", $display)) {
+          // Notify the developer that something is not quite right
+          drupal_set_message('The Services and Services-Views modules need to exist, and should be the LP version!');
+        } else {
+            $view->set_arguments(array($id));
+            $output = $view->preview($display);
+            $is_empty = ((strlen($output) == 0) || ((empty($view->result))) && (count($view->display_handler->get_option('empty')) == 0));
+        }
         $view->destroy();
       }
     }
@@ -162,3 +189,5 @@ function _entityreference_views_formatter_get_views_displays($view_name) {
   }
   return $displays;
 }
+
+
