@@ -80,31 +80,45 @@ function entityreference_views_formatter_field_formatter_prepare_view($entity_ty
         // Do stuff ONLY if the services and services_views modules exist
         // AND if services_views is our custom version
         if (module_exists('services') && 
-            module_exists('services_views') &&
-            function_exists('services_views_render_output') &&
-            preg_match("/^services/i", $display)) 
+                          module_exists('services_views') && 
+                          function_exists('services_views_render_output') && 
+                          preg_match("/^services/i", $display)) 
         {
-            $erfield = field_get_items($entity_type, $entity, $field['field_name']);
-            // Get the referenced field's target-id that we need to limit to
-            $erid = $erfield[0]['target_id'];
-            $view->exposed_input['nid'] = $erid;
-            // $view->set_arguments(array($id));
-            // $view->execute_display($display);
-            $view->pre_execute();
-            $view->execute();
+          $erItems = field_get_items($entity_type, $entity, $field['field_name']);
+          // The field items (entity-relation) are always an array, 
+          // either of one entry, or more,
+          // depending on if the field can have multiple values
+          $output = array();
+          
+          foreach($erItems as $erItem) {
+            // Rebuild the view here, since we'll be destroying it for each loop
+            // to keep the filters correct
+            $view->set_display($display);
             
-            // We can't simply render the view - we need to actually 
-            // go through the fields and render the format that we want
-            $output = services_views_render_output($view);
-            $is_empty = (sizeof($output) == 0);
+            if (isset($erItem['target_id'])) {
+              $view->exposed_input['nid'] = $erItem['target_id'];
+              $view->pre_execute();
+              $view->execute();
+              $erRendered = services_views_render_output($view);
+              
+              // Rendered output for an entity should be an array, and it should
+              // only have one relevant entry.
+              $output[] = $erRendered[0];
+              // Destroy the view to reset it for the next nid
+              $view->destroy();
+            }
+          }
+          $is_empty = (sizeof($output) == 0);
+          
         } elseif (preg_match("/^services/i", $display)) {
           // Notify the developer that something is not quite right
           drupal_set_message('The Services and Services-Views modules need to exist, and should be the LP version!');
         } else {
-            $view->set_arguments(array($id));
-            $output = $view->preview($display);
-            $is_empty = ((strlen($output) == 0) || ((empty($view->result))) && (count($view->display_handler->get_option('empty')) == 0));
+          $view->set_arguments(array($id));
+          $output = $view->preview($display);
+          $is_empty = ((strlen($output) == 0) || ((empty($view->result))) && (count($view->display_handler->get_option('empty')) == 0));
         }
+        // always destroy to reset any future filters
         $view->destroy();
       }
     }
@@ -114,8 +128,7 @@ function entityreference_views_formatter_field_formatter_prepare_view($entity_ty
       $first_item = isset($items[$id][0]) ? $items[$id][0] : array();
       $first_item['rendered'] = $output;
       $items[$id] = array($first_item);
-    }
-    else {
+    } else {
       $items[$id] = array();
     }
   }
@@ -185,9 +198,7 @@ function _entityreference_views_formatter_get_views_displays($view_name) {
   }
 
   foreach ($view->display as $id => $display) {
-    $displays[$id] = $id .': '. $display->display_title;
+    $displays[$id] = $id . ': ' . $display->display_title;
   }
   return $displays;
 }
-
-
